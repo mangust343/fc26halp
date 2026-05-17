@@ -25,5 +25,18 @@ if selected_team:
     with col1:
         position = st.selectbox("На яку позицію шукаємо гравця?", ["ST", "LW", "RW", "CAM", "CM", "CDM", "LB", "CB", "RB", "GK", "LM", "RM"])
     with col2:
-        max_budget = st.number_input("Твій максимальний бюджет (в євро):", min_value=0, value=20000000,
-
+        max_budget = st.number_input("Твій максимальний бюджет (в євро):", min_value=0, value=20000000)
+    
+    if st.button("Знайти кандидатів!"):
+        candidates = df[
+            (df['club_name'] != selected_team) & 
+            (df['player_positions'].str.contains(position, na=False)) & 
+            (df['value_eur'] <= max_budget) &
+            (df['potential'] > df['overall']) 
+        ].sort_values(by='potential', ascending=False).head(10)
+        
+        if not candidates.empty:
+            st.success(f"Знайшли топ-10 талантів на позицію {position}!")
+            st.dataframe(candidates[['short_name', 'club_name', 'overall', 'potential', 'age', 'value_eur', 'wage_eur']])
+        else:
+            st.warning("Нікого не знайдено 😢. Спробуй збільшити бюджет!")
