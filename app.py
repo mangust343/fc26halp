@@ -5,94 +5,148 @@ import pandas as pd
 @st.cache_data
 def load_data():
     df = pd.read_csv("FC26_20250921.csv", low_memory=False)
-    cols = ['short_name', 'club_name', 'overall', 'potential', 'age', 'value_eur', 'wage_eur', 'player_positions', 'pace', 'shooting', 'passing', 'dribbling', 'defending', 'physic']
+    cols = ['short_name', 'club_name', 'overall', 'potential', 'age', 'value_eur', 'wage_eur', 'player_positions']
     return df[cols]
 
 df = load_data()
 
-st.title("⚽ Супер-Скаут & Тактичний Менеджер FC 26")
+st.title("⚽ Тактичний Скаут FC 26")
 
-# 2. Ініціалізація пам'яті програми
+# 2. Пам'ять програми
 if 'current_team' not in st.session_state:
     st.session_state.current_team = None
 if 'custom_players' not in st.session_state:
     st.session_state.custom_players = []
 
-# Вибір клубу
 teams = df['club_name'].dropna().unique().tolist()
 teams.sort()
 selected_team = st.selectbox("Обери свій клуб:", ["-- Оберіть клуб --"] + teams)
 
 if selected_team != "-- Оберіть клуб --":
-    # Завантаження складу при першому виборі
     if st.session_state.current_team != selected_team:
         st.session_state.current_team = selected_team
         base_players = df[df['club_name'] == selected_team].sort_values(by='overall', ascending=False).to_dict(orient='records')
-        # Додаємо статус: перші 11 в основу, інші на заміну
         for idx, p in enumerate(base_players):
             p['is_starter'] = True if idx < 11 else False
         st.session_state.custom_players = base_players
 
-    # Обробка дій (переноси з заміни в основу)
-    # Створюємо копію для безпечного перебору
     players_list = list(st.session_state.custom_players)
-    
     starters = [p for p in players_list if p['is_starter']]
     bench = [p for p in players_list if not p['is_starter']]
 
-    # --- БЛОК 1: ШІ АНАЛІЗ ТА АВТО-СХЕМА ---
-    all_positions = ",".join([p['player_positions'] for p in starters]).upper()
-    strikers = all_positions.count("ST") + all_positions.count("CF")
-    wingers = all_positions.count("LW") + all_positions.count("RW") + all_positions.count("LM") + all_positions.count("RM")
+    # 3. ШІ Авто-схема
+    all_pos = ",".join([p['player_positions'] for p in starters]).upper()
+    strikers = all_pos.count("ST") + all_pos.count("CF")
+    wingers = all_pos.count("LW") + all_pos.count("RW") + all_pos.count("LM") + all_pos.count("RM")
     
     if strikers >= 2 and wingers >= 2:
-        formation = "4-2-4"
-        positions_layout = ["GK", "LB", "CB", "CB", "RB", "CM", "CM", "LW", "ST", "ST", "RW"]
+        formation = "4-2-4 (Атака з 2 форвардами та вінгерами)"
     elif wingers >= 2:
-        formation = "4-3-3"
-        positions_layout = ["GK", "LB", "CB", "CB", "RB", "CM", "CDM", "CAM", "LW", "ST", "RW"]
+        formation = "4-3-3 (Класична флангова)"
     elif strikers >= 2:
-        formation = "4-4-2"
-        positions_layout = ["GK", "LB", "CB", "CB", "RB", "LM", "CM", "CM", "RM", "ST", "ST"]
+        formation = "4-4-2 (Баланс з 2 форвардами)"
     else:
-        formation = "4-2-3-1"
-        positions_layout = ["GK", "LB", "CB", "CB", "RB", "CDM", "CDM", "CAM", "LM", "RM", "ST"]
+        formation = "4-2-3-1 (Сучасна з CAM)"
 
-    st.success(f"🧠 **ШІ-Аналітик обрав тактику:** {formation} під твій поточний склад!")
+    st.success(f"🧠 **Оптимальна тактика від ШІ:** {formation}")
 
-    # --- БЛОК 2: ВІЗУАЛЬНЕ ФОТО РОЗТАШУВАННЯ (ГРАФІЧНЕ ПОЛЕ) ---
-    st.header("📋 Тактична розстановка на полі")
-    
-    # Сортуємо стартовий склад для красивої посадки на позиції
+    # 4. Візуальне поле (Короткий безпечний HTML-код)
+    st.header("📋 Розстановка на полі")
     starters_sorted = sorted(starters, key=lambda x: x['overall'], reverse=True)
     
-    # Малюємо поле через HTML/CSS стилі
-    field_html = """
-    <div style="background-color: #2e7d32; border: 3px solid white; border-radius: 10px; padding: 15px; text-align: center; font-family: Arial, sans-serif; color: white; box-shadow: inset 0 0 20px #1b5e20;">
-        <div style="border: 2px dashed rgba(255,255,255,0.4); border-radius: 5px; padding: 10px;">
-            <span style="background: rgba(0,0,0,0.6); padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: bold;">🔥 АТАКУВАЛЬНА ЗОНА</span>
-            <div style="display: flex; justify-content: space-around; margin: 20px 0;">
-    """
-    
-    # Розподіляємо 11 гравців по умовних лініях поля (Атака, Півзахист, Захист, Воротар)
-    # Для простоти візуалізації розіб'ємо ТОП-11 на лінії
-    line_att = starters_sorted[0:3] if len(starters_sorted) >= 3 else starters_sorted
-    line_mid = starters_sorted[3:7] if len(starters_sorted) >= 7 else []
-    line_def = starters_sorted[7:10] if len(starters_sorted) >= 10 else []
-    line_gk = [starters_sorted[10]] if len(starters_sorted) == 11 else []
+    line_att = starters_sorted[0:3]
+    line_mid = starters_sorted[3:7]
+    line_def = starters_sorted[7:10]
+    line_gk = starters_sorted[10:]
 
-    # Атака
+    field_style = "background:#2e7d32; border:3px solid white; border-radius:10px; padding:15px; text-align:center; color:white;"
+    box_style = "background:#1e3c72; padding:5px; border-radius:5px; font-size:11px; min-width:70px; border:1px solid gold;"
+    gk_style = "background:#d84315; padding:5px; border-radius:5px; font-size:11px; min-width:70px; border:1px solid white;"
+
+    field_html = f'<div style="{field_style}">'
+    
+    # ЛІНІЯ АТАКИ
+    field_html += '<span style="font-size:11px;font-weight:bold;">🔥 АТАКА</span>'
+    field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0;">'
     for p in line_att:
-        field_html += f'<div style="background: #1e3c72; padding: 8px; border-radius: 5px; min-width: 75px; border: 1px solid gold;"><b style="font-size:11px;">{p["short_name"]}</b><br><span style="font-size:10px; color: #00ffcc;">OVR: {p["overall"]}</span></div>'
+        field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
+    field_html += '</div>'
     
-    field_html += '</div><span style="background: rgba(0,0,0,0.6); padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: bold;">⚡ ПІВЗАХИСТ</span><div style="display: flex; justify-content: space-around; margin: 20px 0;">'
-    
-    # Півзахист
+    # ЛІНІЯ ПІВЗАХИСТУ
+    field_html += '<span style="font-size:11px;font-weight:bold;">⚡ ПІВЗАХИСТ</span>'
+    field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0;">'
     for p in line_mid:
-        field_html += f'<div style="background: #2a5298; padding: 8px; border-radius: 5px; min-width: 75px;"><b style="font-size:11px;">{p["short_name"]}</b><br><span style="font-size:10px; color: #00ffcc;">OVR: {p["overall"]}</span></div>'
-        
-    field_html += '</div><span style="background: rgba(0,0,0,0.6); padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: bold;">🛡 ЗАХИСТ</span><div style="display: flex; justify-content: space-around; margin: 20px 0;">'
+        field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
+    field_html += '</div>'
     
-    # Захист
+    # ЛІНІЯ ЗАХИСТУ
+    field_html += '<span style="font-size:11px;font-weight:bold;">🛡️ ЗАХИСТ</span>'
+    field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0;">'
     for p in line_def:
-        field_html += f'<div style="background: #37474f; padding: 8px; border-radius: 5px; min-width: 75px;"><b style="font-size:11px;">{p["short_name"]}</b><br><span style="font-size:10px; color: #
+        field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
+    field_html += '</div>'
+    
+    # ВОРОТАР
+    field_html += '<div style="display:flex;justify-content:center;margin-top:10px;">'
+    for p in line_gk:
+        field_html += f'<div style="{gk_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
+    field_html += '</div></div>'
+    
+    st.markdown(field_html, unsafe_allow_html=True)
+
+    # 5. Керування основою та заміною
+    st.header("🏟️ Керування складом")
+    
+    st.subheader("⭐ Стартові 11")
+    for idx, p in enumerate(starters):
+        col1, col2 = st.columns([4, 1])
+        col1.write(f"🏃‍♂️ **{p['short_name']}** ({p['player_positions']}) | OVR: **{p['overall']}**")
+        if col2.button("⬇️ Банка", key=f"bench_{p['short_name']}_{idx}"):
+            for op in st.session_state.custom_players:
+                if op['short_name'] == p['short_name']: op['is_starter'] = False
+            st.rerun()
+
+    st.subheader("🪑 Лава запасних")
+    if not bench:
+        st.info("Запас порожній.")
+    else:
+        for idx, p in enumerate(bench):
+            col1, col2 = st.columns([4, 1])
+            col1.write(f"🪵 **{p['short_name']}** ({p['player_positions']}) | OVR: **{p['overall']}**")
+            if col2.button("⬆️ В основу", key=f"start_{p['short_name']}_{idx}"):
+                for op in st.session_state.custom_players:
+                    if op['short_name'] == p['short_name']: op['is_starter'] = True
+                st.rerun()
+
+    # 6. Трансфери та Підказки цін
+    st.header("🔄 Трансферний відділ")
+    t1, t2 = st.tabs(["🛍️ Купити", "❌ Продати"])
+    
+    with t1:
+        s_name = st.text_input("Пошук за прізвищем:")
+        if s_name:
+            res = df[df['short_name'].str.contains(s_name, case=False, na=False)].head(3)
+            for idx, row in res.iterrows():
+                p_price = int(row['value_eur'] * 1.25)
+                p_wage = int(row['wage_eur'] * 1.15) if row['wage_eur'] > 0 else 4500
+                st.write(f"**{row['short_name']}** | OVR: {row['overall']} | {row['club_name']}")
+                st.markdown(f"💰 Ціна ринку: `{p_price:,} €` | Зарплата: `{p_wage:,} €/тиж`")
+                
+                owned = any(cp['short_name'] == row['short_name'] for cp in st.session_state.custom_players)
+                if owned:
+                    st.text("✅ Вже є у складі")
+                else:
+                    if st.button(f"Підписати {row['short_name']}", key=f"b_{idx}"):
+                        np = row.to_dict()
+                        np['is_starter'] = False
+                        st.session_state.custom_players.append(np)
+                        st.rerun()
+                st.write("---")
+
+    with t2:
+        all_names = [p['short_name'] for p in st.session_state.custom_players]
+        to_sell = st.selectbox("Видалити з команди:", ["-- Обери кого вигнати --"] + all_names)
+        if to_sell != "-- Обери кого вигнати --":
+            if st.button("Підтвердити продаж"):
+                st.session_state.custom_players = [p for p in st.session_state.custom_players if p['short_name'] != to_sell]
+                st.rerun()
