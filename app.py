@@ -10,14 +10,24 @@ def load_data():
 
 df = load_data()
 
-st.title("⚽ Тактичний Скаут FC 26")
+st.title("⚽ Професійний Менеджер Кар'єри FC 26")
 
-# 2. Пам'ять програми
+# 2. Ініціалізація пам'яті (Бюджет, Клуб, Гравці, Схема)
+if 'budget' not in st.session_state:
+    st.session_state.budget = 50000000  # Дефолтний бюджет 50 млн
 if 'current_team' not in st.session_state:
     st.session_state.current_team = None
 if 'custom_players' not in st.session_state:
     st.session_state.custom_players = []
+if 'chosen_formation' not in st.session_state:
+    st.session_state.chosen_formation = "Авто-вибір ШІ"
 
+# --- БЛОК 1: КЕРУВАННЯ БУДЖЕТОМ ---
+st.header("💰 Фінансовий департамент")
+st.session_state.budget = st.number_input("Твій поточний бюджет трансферів (€):", min_value=0, value=st.session_state.budget, step=1000000)
+st.metric(label="💵 Доступний баланс клубу", value=f"{st.session_state.budget:,} €")
+
+# Вибір клубу
 teams = df['club_name'].dropna().unique().tolist()
 teams.sort()
 selected_team = st.selectbox("Обери свій клуб:", ["-- Оберіть клуб --"] + teams)
@@ -34,127 +44,127 @@ if selected_team != "-- Оберіть клуб --":
     starters = [p for p in players_list if p['is_starter']]
     bench = [p for p in players_list if not p['is_starter']]
 
-    # 3. ШІ Авто-схема
+    # --- БЛОК 2: ВИБІР ТА АНАЛІЗ СХЕМИ ВІД ШІ ---
+    st.header("🧠 Тактичний аналіз & Вибір схеми")
+    
+    # Вибір схеми користувачем
+    formation_options = ["Авто-вибір ШІ", "4-2-4", "4-3-3", "4-4-2", "4-2-3-1"]
+    st.session_state.chosen_formation = st.selectbox("Яку тактичну схему ти хочеш використовувати?", formation_options, index=formation_options.index(st.session_state.chosen_formation))
+
+    # Рахуємо позиції в основі для аналізу ШІ
     all_pos = ",".join([p['player_positions'] for p in starters]).upper()
     strikers = all_pos.count("ST") + all_pos.count("CF")
     wingers = all_pos.count("LW") + all_pos.count("RW") + all_pos.count("LM") + all_pos.count("RM")
-    
+    midfielders = all_pos.count("CM") + all_pos.count("CDM") + all_pos.count("CAM")
+
+    # Визначаємо, яка схема найкраща за складом
     if strikers >= 2 and wingers >= 2:
-        formation = "4-2-4 (Атака з 2 форвардами та вінгерами)"
+        ai_recommended = "4-2-4"
     elif wingers >= 2:
-        formation = "4-3-3 (Класична флангова)"
+        ai_recommended = "4-3-3"
     elif strikers >= 2:
-        formation = "4-4-2 (Баланс з 2 форвардами)"
+        ai_recommended = "4-4-2"
     else:
-        formation = "4-2-3-1 (Сучасна з CAM)"
+        ai_recommended = "4-2-3-1"
 
-    st.success(f"🧠 **Оптимальна тактика від ШІ:** {formation}")
-
-    # 4. Візуальне поле (Воротар знизу, напад зверху)
-    st.header("📋 Розстановка на полі")
-    starters_sorted = sorted(starters, key=lambda x: x['overall'], reverse=True)
+    # Сценарій 1: Користувач довірився ШІ
+    if st.session_state.chosen_formation == "Авто-вибір ШІ":
+        st.success(f"📋 **ШІ автоматично обрав схему:** {ai_recommended}")
+        st.info("💡 *Порада тренера: Ця схема ідеально підходить під твоїх поточних ТОП-11 гравців.*")
     
-    # Ділимо склад на позиційні лінії (якщо гравців менше 11, код не зламається)
-    line_att = starters_sorted[0:3]
-    line_mid = starters_sorted[3:7]
-    line_def = starters_sorted[7:10]
-    line_gk = starters_sorted[10:]
-
-    field_style = "background:#2e7d32; border:3px solid white; border-radius:10px; padding:15px; text-align:center; color:white; box-shadow: inset 0 0 20px #1b5e20;"
-    box_style = "background:#1e3c72; padding:5px; border-radius:5px; font-size:11px; min-width:70px; border:1px solid gold;"
-    gk_style = "background:#d84315; padding:5px; border-radius:5px; font-size:11px; min-width:70px; border:1px solid white;"
-
-    field_html = f'<div style="{field_style}">'
-    
-    # 🔝 НАПАД (ВГОРІ)
-    if line_att:
-        field_html += '<span style="font-size:11px;font-weight:bold;color:#ffeb3b;">🔥 НАПАД</span>'
-        field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0 20px 0;">'
-        for p in line_att:
-            field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
-        field_html += '</div>'
-    
-    # ⚡ ПІВЗАХИСТ (ПО СЕРЕДИНІ)
-    if line_mid:
-        field_html += '<span style="font-size:11px;font-weight:bold;color:#b3e5fc;">⚡ ПІВЗАХИСТ</span>'
-        field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0 20px 0;">'
-        for p in line_mid:
-            field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
-        field_html += '</div>'
-    
-    # 🛡️ ЗАХИСТ (ПЕРЕД ВОРОТАРЕМ)
-    if line_def:
-        field_html += '<span style="font-size:11px;font-weight:bold;color:#e0e0e0;">🛡️ ЗАХИСТ</span>'
-        field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0 20px 0;">'
-        for p in line_def:
-            field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
-        field_html += '</div>'
-    
-    # 🧤 ВОРОТАР (ЗНИЗУ)
-    if line_gk:
-        field_html += '<span style="font-size:11px;font-weight:bold;color:#ffccbc;">🧤 ВОРОТАР</span>'
-        field_html += '<div style="display:flex;justify-content:center;margin-top:10px;">'
-        for p in line_gk:
-            field_html += f'<div style="{gk_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
-        field_html += '</div>'
+    # Сценарій 2: Користувач сам вибрав тактику
+    else:
+        user_form = st.session_state.chosen_formation
+        st.info(f"📋 **Твоя збережена схема:** {user_form}")
         
-    field_html += '</div>'
-    
-    st.markdown(field_html, unsafe_allow_html=True)
+        if user_form == ai_recommended:
+            st.success("✅ **Вердикт ШІ:** Чудова схема! Вона ідеально збалансована під гравців у твоїй основі.")
+        else:
+            st.warning(f"⚠️ **Вердикт ШІ:** Схема не зовсім оптимальна для цих гравців.")
+            if user_form == "4-2-4" and (strikers < 2 or wingers < 2):
+                st.write("❌ *Причина: Для схеми 4-2-4 тобі не вистачає чистих форвардів або вінгерів у стартовому складі. Рекомендується докупити їх або змінити схему.*")
+            elif user_form == "4-3-3" and wingers < 2:
+                st.write("❌ *Причина: У тебе мало флангових атакувальних гравців (вінгеров) для якісної гри в 4-3-3.*")
+            elif user_form == "4-4-2" and strikers < 2:
+                st.write("❌ *Причина: Схема 4-4-2 вимагає двох сильних нападників попереду, а у тебе зараз один або взагалі немає.*")
+            else:
+                st.write(f"💡 *Порада: Спробуй перевести в основу гравців потрібних позицій або ШІ радить увімкнути тактику `{ai_recommended}`.*")
 
-    # 5. Керування основою та заміною
-    st.header("🏟️ Керування складом")
+    # --- БЛОК 3: ТАБЛИЦІ СКЛАДУ (ОСНОВА ТА ЗАМІНА) ---
+    st.header("🏟️ Управління складом команди")
     
-    st.subheader("⭐ Стартові 11")
-    for idx, p in enumerate(starters):
-        col1, col2 = st.columns([4, 1])
-        col1.write(f"🏃‍♂️ **{p['short_name']}** ({p['player_positions']}) | OVR: **{p['overall']}**")
-        if col2.button("⬇️ Банка", key=f"bench_{p['short_name']}_{idx}"):
-            for op in st.session_state.custom_players:
-                if op['short_name'] == p['short_name']: op['is_starter'] = False
-            st.rerun()
+    # Перетворюємо в датафрейми для чистого табличного виводу
+    starters_df = pd.DataFrame(starters)
+    bench_df = pd.DataFrame(bench)
 
-    st.subheader("🪑 Лава запасних")
-    if not bench:
-        st.info("Запас порожній.")
-    else:
+    st.subheader("⭐ Стартовий склад (ТОП-11)")
+    if not starters_df.empty:
+        st.dataframe(starters_df[['short_name', 'player_positions', 'overall', 'potential', 'age']])
+        
+        # Кнопки дій для основи
+        for idx, p in enumerate(starters):
+            if st.button(f"⬇️ Відправити на банку: {p['short_name']}", key=f"b_starters_{idx}"):
+                for op in st.session_state.custom_players:
+                    if op['short_name'] == p['short_name']: op['is_starter'] = False
+                st.rerun()
+    
+    st.write("---")
+    st.subheader("🪑 Лава запасних та Резерв")
+    if not bench_df.empty:
+        st.dataframe(bench_df[['short_name', 'player_positions', 'overall', 'potential', 'age']])
+        
+        # Кнопки дій для заміни
         for idx, p in enumerate(bench):
-            col1, col2 = st.columns([4, 1])
-            col1.write(f"🪵 **{p['short_name']}** ({p['player_positions']}) | OVR: **{p['overall']}**")
-            if col2.button("⬆️ В основу", key=f"start_{p['short_name']}_{idx}"):
+            if st.button(f"⬆️ Поставити в основу: {p['short_name']}", key=f"b_bench_{idx}"):
                 for op in st.session_state.custom_players:
                     if op['short_name'] == p['short_name']: op['is_starter'] = True
                 st.rerun()
+    else:
+        st.info("На заміні немає нікого.")
 
-    # 6. Трансфери та Підказки цін
-    st.header("🔄 Трак трансферів")
-    t1, t2 = st.tabs(["🛍️ Купити", "❌ Продати"])
+    # --- БЛОК 4: ТРАНСФЕРИ З АВТО-РАХУНКОМ БУДЖЕТУ ---
+    st.header("🔄 Трансферне вікно клубу")
+    t1, t2 = st.tabs(["🛍️ Купити підсилення", "❌ Продати гравця"])
     
     with t1:
-        s_name = st.text_input("Пошук за прізвищем:")
+        s_name = st.text_input("Пошук гравця на ринку (прізвище):")
         if s_name:
             res = df[df['short_name'].str.contains(s_name, case=False, na=False)].head(3)
             for idx, row in res.iterrows():
                 p_price = int(row['value_eur'] * 1.25)
                 p_wage = int(row['wage_eur'] * 1.15) if row['wage_eur'] > 0 else 4500
-                st.write(f"**{row['short_name']}** | OVR: {row['overall']} | {row['club_name']}")
-                st.markdown(f"💰 Ціна ринку: `{p_price:,} €` | Зарплата: `{p_wage:,} €/тиж`")
+                st.write(f"**{row['short_name']}** ({row['player_positions']}) | OVR: {row['overall']} | Клуб: {row['club_name']}")
+                st.markdown(f"💰 Рекомендована ціна покупки: `{p_price:,} €` | Зарплата: `{p_wage:,} €/тиж`")
                 
                 owned = any(cp['short_name'] == row['short_name'] for cp in st.session_state.custom_players)
                 if owned:
-                    st.text("✅ Вже є у складі")
+                    st.text("✅ Вже є у твоїй коменді")
                 else:
-                    if st.button(f"Підписати {row['short_name']}", key=f"b_{idx}"):
-                        np = row.to_dict()
-                        np['is_starter'] = False
-                        st.session_state.custom_players.append(np)
-                        st.rerun()
+                    if st.button(f"🤝 Підписати за {p_price:,} €", key=f"buy_btn_{idx}"):
+                        if st.session_state.budget >= p_price:
+                            # Віднімаємо від бюджету
+                            st.session_state.budget -= p_price
+                            np = row.to_dict()
+                            np['is_starter'] = False  # Новачок іде на заміну
+                            st.session_state.custom_players.append(np)
+                            st.success(f"📝 {row['short_name']} підписаний! {p_price:,} € знято з бюджету.")
+                            st.rerun()
+                        else:
+                            st.error("❌ Недостатньо бюджету для цієї покупки! Продай когось спочатку.")
                 st.write("---")
 
     with t2:
         all_names = [p['short_name'] for p in st.session_state.custom_players]
-        to_sell = st.selectbox("Видалити з команди:", ["-- Обери кого вигнати --"] + all_names)
-        if to_sell != "-- Обери кого вигнати --":
-            if st.button("Підтвердити продаж"):
+        to_sell = st.selectbox("Обери кого продати:", ["-- Виберіть гравця --"] + all_names)
+        if to_sell != "-- Виберіть гравця --":
+            # Знаходимо дані гравця для продажу
+            p_to_sell_data = next(p for p in st.session_state.custom_players if p['short_name'] == to_sell)
+            sell_price = int(p_to_sell_data['value_eur'] * 1.20)  # Продаємо з націнкою 20%
+            
+            st.warning(f"💡 Ти можеш продати його приблизно за: {sell_price:,} €")
+            if st.button(f"💰 Підтвердити продаж і отримати {sell_price:,} €"):
+                # Додаємо гроші в бюджет
+                st.session_state.budget += sell_price
                 st.session_state.custom_players = [p for p in st.session_state.custom_players if p['short_name'] != to_sell]
+                st.success(f"📈 {to_sell} проданий! Гроші додані на твій баланс.")
                 st.rerun()
