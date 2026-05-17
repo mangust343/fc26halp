@@ -50,47 +50,55 @@ if selected_team != "-- Оберіть клуб --":
 
     st.success(f"🧠 **Оптимальна тактика від ШІ:** {formation}")
 
-    # 4. Візуальне поле (Короткий безпечний HTML-код)
+    # 4. Візуальне поле (Воротар знизу, напад зверху)
     st.header("📋 Розстановка на полі")
     starters_sorted = sorted(starters, key=lambda x: x['overall'], reverse=True)
     
+    # Ділимо склад на позиційні лінії (якщо гравців менше 11, код не зламається)
     line_att = starters_sorted[0:3]
     line_mid = starters_sorted[3:7]
     line_def = starters_sorted[7:10]
     line_gk = starters_sorted[10:]
 
-    field_style = "background:#2e7d32; border:3px solid white; border-radius:10px; padding:15px; text-align:center; color:white;"
+    field_style = "background:#2e7d32; border:3px solid white; border-radius:10px; padding:15px; text-align:center; color:white; box-shadow: inset 0 0 20px #1b5e20;"
     box_style = "background:#1e3c72; padding:5px; border-radius:5px; font-size:11px; min-width:70px; border:1px solid gold;"
     gk_style = "background:#d84315; padding:5px; border-radius:5px; font-size:11px; min-width:70px; border:1px solid white;"
 
     field_html = f'<div style="{field_style}">'
     
-    # ЛІНІЯ АТАКИ
-    field_html += '<span style="font-size:11px;font-weight:bold;">🔥 АТАКА</span>'
-    field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0;">'
-    for p in line_att:
-        field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
-    field_html += '</div>'
+    # 🔝 НАПАД (ВГОРІ)
+    if line_att:
+        field_html += '<span style="font-size:11px;font-weight:bold;color:#ffeb3b;">🔥 НАПАД</span>'
+        field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0 20px 0;">'
+        for p in line_att:
+            field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
+        field_html += '</div>'
     
-    # ЛІНІЯ ПІВЗАХИСТУ
-    field_html += '<span style="font-size:11px;font-weight:bold;">⚡ ПІВЗАХИСТ</span>'
-    field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0;">'
-    for p in line_mid:
-        field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
-    field_html += '</div>'
+    # ⚡ ПІВЗАХИСТ (ПО СЕРЕДИНІ)
+    if line_mid:
+        field_html += '<span style="font-size:11px;font-weight:bold;color:#b3e5fc;">⚡ ПІВЗАХИСТ</span>'
+        field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0 20px 0;">'
+        for p in line_mid:
+            field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
+        field_html += '</div>'
     
-    # ЛІНІЯ ЗАХИСТУ
-    field_html += '<span style="font-size:11px;font-weight:bold;">🛡️ ЗАХИСТ</span>'
-    field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0;">'
-    for p in line_def:
-        field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
-    field_html += '</div>'
+    # 🛡️ ЗАХИСТ (ПЕРЕД ВОРОТАРЕМ)
+    if line_def:
+        field_html += '<span style="font-size:11px;font-weight:bold;color:#e0e0e0;">🛡️ ЗАХИСТ</span>'
+        field_html += '<div style="display:flex;justify-content:space-around;margin:10px 0 20px 0;">'
+        for p in line_def:
+            field_html += f'<div style="{box_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
+        field_html += '</div>'
     
-    # ВОРОТАР
-    field_html += '<div style="display:flex;justify-content:center;margin-top:10px;">'
-    for p in line_gk:
-        field_html += f'<div style="{gk_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
-    field_html += '</div></div>'
+    # 🧤 ВОРОТАР (ЗНИЗУ)
+    if line_gk:
+        field_html += '<span style="font-size:11px;font-weight:bold;color:#ffccbc;">🧤 ВОРОТАР</span>'
+        field_html += '<div style="display:flex;justify-content:center;margin-top:10px;">'
+        for p in line_gk:
+            field_html += f'<div style="{gk_style}">{p["short_name"]}<br><b>OVR: {p["overall"]}</b></div>'
+        field_html += '</div>'
+        
+    field_html += '</div>'
     
     st.markdown(field_html, unsafe_allow_html=True)
 
@@ -119,7 +127,7 @@ if selected_team != "-- Оберіть клуб --":
                 st.rerun()
 
     # 6. Трансфери та Підказки цін
-    st.header("🔄 Трансферний відділ")
+    st.header("🔄 Трак трансферів")
     t1, t2 = st.tabs(["🛍️ Купити", "❌ Продати"])
     
     with t1:
